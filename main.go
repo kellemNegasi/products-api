@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/gorilla/mux"
 	"github.com/kellemNegasi/product-api/handlers"
 )
 
@@ -17,11 +18,20 @@ const address = ":8080"
 func main() {
 	l := log.New(os.Stdout, "Products-api ", log.LstdFlags)
 	ph := handlers.NewProducts(l)
-	mux := http.NewServeMux()
-	mux.Handle("/", ph)
+	r := mux.NewRouter()
+
+	getRouter := r.Methods(http.MethodGet).Subrouter()
+	getRouter.HandleFunc("/", ph.GetProducts)
+	postRouter := r.Methods(http.MethodPost).Subrouter()
+	postRouter.HandleFunc("/", ph.AddProduct)
+	postRouter.Use(ph.MiddlewareProductValidation)
+	putRouter := r.Methods(http.MethodPut).Subrouter()
+	putRouter.HandleFunc("/{id:[0-9]+}", ph.UpdateProduct)
+	putRouter.Use(ph.MiddlewareProductValidation)
+
 	server := &http.Server{
 		Addr:         address,
-		Handler:      mux,
+		Handler:      r,
 		ReadTimeout:  120 * time.Second,
 		WriteTimeout: 5 * time.Second,
 		IdleTimeout:  2 * time.Second,
