@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"regexp"
+	"strconv"
 
 	"github.com/kellemNegasi/product-api/data"
 )
@@ -23,6 +25,31 @@ func (p *Products) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if r.Method == http.MethodPost {
 		p.AddProduct(w, r)
+		return
+	}
+	if r.Method == http.MethodPut {
+		path := r.URL.Path
+		re := "/([0-9]+)"
+		exp := regexp.MustCompile(re)
+		matchingGroup := exp.FindAllStringSubmatch(path, -1)
+		p.l.Println("matching group ", matchingGroup)
+		if len(matchingGroup) != 1 {
+			p.l.Printf("Invalid Uri in path %s", path)
+			http.Error(w, "Invalid URI", http.StatusBadRequest)
+			return
+		}
+		if len(matchingGroup[0]) != 2 {
+			p.l.Printf("Invalid Uri in path %s", path)
+			http.Error(w, "Invalid URI ", http.StatusBadRequest)
+			return
+		}
+		idStr := matchingGroup[0][1]
+		id, err := strconv.Atoi(idStr)
+		if err != nil {
+			p.l.Printf("Invalid Uri in path %s", path)
+			http.Error(w, "Invalid URI ", http.StatusBadRequest)
+		}
+		p.UpdateProduct(id, w, r)
 		return
 	}
 
@@ -48,4 +75,24 @@ func (p *Products) AddProduct(w http.ResponseWriter, r *http.Request) {
 	}
 	data.AddProduct(prod)
 	p.l.Printf("Prod: %#v", prod)
+}
+
+func (p *Products) UpdateProduct(id int, w http.ResponseWriter, r *http.Request) {
+	p.l.Print(" Handle PUT Product")
+	prod := &data.Product{}
+	err := prod.FromJson(r.Body)
+	if err != nil {
+		p.l.Printf("failed to unmarshal %s", err)
+		http.Error(w, "Unable to unmarshal json", http.StatusBadRequest)
+	}
+	err = data.UpdateProduct(id, prod)
+	if err == data.ErrProductNotFound {
+		p.l.Println("product not found ")
+		http.Error(w, "Product not found!", http.StatusNotFound)
+	}
+	if err != nil {
+		p.l.Println("internal error ")
+		http.Error(w, "internal error", http.StatusInternalServerError)
+	}
+	return
 }
