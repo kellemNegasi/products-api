@@ -15,7 +15,7 @@ type Product struct {
 	Name        string  `json:"name" validate:"required"`
 	Description string  `json:"description"`
 	Price       float32 `json:"price" validate:"gt=0"`
-	SKU         string  `json:"sku:" validate:"sku"`
+	SKU         string  `json:"sku:" validate:"valid-sku"`
 	CreatedOn   string  `json:"-"`
 	UpdatedOn   string  `json:"-"`
 	DeletedOn   string  `json:"-"`
@@ -30,9 +30,9 @@ func (p *Products) ToJson(w io.Writer) error {
 	return encoder.Encode(p)
 }
 
-func (p *Product) validate() error {
+func (p *Product) Validate() error {
 	validate := validator.New()
-	validate.RegisterValidation("sku", validateSKU)
+	validate.RegisterValidation("valid-sku", validateSKU)
 	return validate.Struct(p)
 }
 
